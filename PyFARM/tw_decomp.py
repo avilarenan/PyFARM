@@ -63,15 +63,16 @@ def tw_decomp(rts: np.ndarray, qts: np.ndarray, twp: pd.DataFrame, mode: str = '
             dec_rts = rts[twp['y'].values]  # Apply reference warping
     else:  # Warping relying on differences between data points
         # Insert samples in query ts (linear interpolation)
-        dec_qts = [qts[0]] + [np.linspace(qts[int(x)], qts[int(x)+1], num=len(twp[twp['x'] == x]))[1:] for x in np.unique(twp['x'].values)]
+        dec_qts = [[qts[0]]] + [np.linspace(qts[int(x)], qts[int(x)+1], num=(len(twp[twp['x'] == x]) +1))[1:] for x in np.unique(twp['x'].values)]
         dec_qts = np.concatenate(dec_qts)
-        
+
         if mode == 'uni':  # Adjust query time series only
-            dec_qts = dec_qts[~np.concatenate(([True], np.diff(twp['y'].values) == 0))]  # Remove duplicates in query ts
+            #dec_qts = dec_qts[~np.concatenate(([True], np.diff(twp['y'].values) == 0))]  # Remove duplicates in query ts
+            dec_qts = dec_qts[~np.concatenate([[False], np.diff(twp['y'].values) == 0, [False]])]  # Remove duplicates in query ts
             dec_rts = rts  # Keep reference ts untouched
         elif mode == 'dual':  # Adjust query and reference time series
             # Insert samples in reference ts (linear interpolation)
-            dec_rts = [rts[0]] + [np.linspace(rts[int(y)], rts[int(y)+1], num=len(twp[twp['y'] == y]))[1:] for y in np.unique(twp['y'].values)]
+            dec_rts = [[rts[0]]] + [np.linspace(rts[int(y)], rts[int(y)+1], num=(len(twp[twp['y'] == y]) +1))[1:] for y in np.unique(twp['y'].values)]
             dec_rts = np.concatenate(dec_rts)
 
     return {'rts': dec_rts, 'qts': dec_qts}

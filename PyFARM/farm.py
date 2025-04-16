@@ -54,12 +54,14 @@ def farm(
     lqry = len(dqry)
 
     # Initialize the warped path
-    path = pd.DataFrame({'y': [1], 'x': [1]})
+    path = pd.DataFrame({'y': [0], 'x': [0]})
     path_last = path.iloc[-1]
     dist_root = farm_dist(dref[0], dqry[0], metric_space)
 
     # Ensure conditions
     assert lcwin <= min(len(refTS), len(qryTS)), 'Local correlation window exceeds time series length.'
+    assert isinstance(refTS, np.ndarray), 'refTS must be of type np.array.'
+    assert isinstance(qryTS, np.ndarray), 'qryTS must be of type np.array.'
     assert lcwin % 2 == 1, 'Local correlation window must be odd.'
     assert 1 <= rel_th <= 100, 'Relevance threshold must be between 1 and 100.'
     assert reshape_mode in ['uni', 'dual'], "Reshape mode must be either 'uni' or 'dual'."
@@ -70,22 +72,29 @@ def farm(
 
     # Feature alignment (if enabled)
     if ff_align:
-        while path_last['x'] + 1 <= lqry or path_last['y'] + 1 <= lref:
+        while path_last['x'] + 1 < lqry or path_last['y'] + 1 < lref:
             # Calculate diagonal, dx+2y+1 and dx+1y+2 distances
-            dist_xy = farm_dist(dref[path_last['y']], dqry[path_last['x']], metric_space) if path_last['y'] + 1 <= lref and path_last['x'] + 1 <= lqry else np.nan
-            dist_xyy = farm_dist(dref[path_last['y'] + 1], dqry[path_last['x']], metric_space) + missal_y if path_last['y'] + 2 <= lref and path_last['x'] + 1 <= lqry else np.nan
-            dist_xxy = farm_dist(dref[path_last['y']], dqry[path_last['x'] + 1], metric_space) if path_last['y'] + 1 <= lref and path_last['x'] + 2 <= lqry and path_last['y'] != path_last['x'] else np.nan
+            dist_xy = farm_dist(dref[path_last['y'] + 1], dqry[path_last['x'] + 1], metric_space) if path_last['y'] + 1 < lref and path_last['x'] + 1 < lqry else np.nan
+            dist_xyy = farm_dist(dref[path_last['y'] + 2], dqry[path_last['x'] + 1], metric_space) + missal_y if path_last['y'] + 2 < lref and path_last['x'] + 1 < lqry else np.nan
+            dist_xxy = (np.inf if path_last['y'] == path_last['x'] else farm_dist(dref[path_last['y'] + 1], dqry[path_last['x'] + 2], metric_space)) if (path_last['y'] + 1 < lref and path_last[
+            'x'] + 2 < lqry) else np.nan
+
+            # dist_xy = farm_dist(dref[path_last['y']], dqry[path_last['x']], metric_space) if path_last['y'] + 1 <= lref and path_last['x'] + 1 <= lqry else np.nan
+            # dist_xyy = farm_dist(dref[path_last['y'] + 1], dqry[path_last['x']], metric_space) + missal_y if path_last['y'] + 2 <= lref and path_last['x'] + 1 <= lqry else np.nan
+            # dist_xxy = farm_dist(dref[path_last['y']], dqry[path_last['x'] + 1], metric_space) if path_last['y'] + 1 <= lref and path_last['x'] + 2 <= lqry and path_last['y'] != path_last['x'] else np.nan
 
             # Choose the next step
             next_step = {
                 0: {'root': dist_xy + dist_root, 'path': pd.DataFrame({'y': [path_last['y'] + 1], 'x': [path_last['x'] + 1]})},
                 1: {'root': dist_xxy + dist_root, 'path': pd.DataFrame({'y': [path_last['y'], path_last['y'] + 1], 'x': [path_last['x'] + 1, path_last['x'] + 2]})},
                 2: {'root': dist_xyy + dist_root, 'path': pd.DataFrame({'y': [path_last['y'] + 1, path_last['y'] + 2], 'x': [path_last['x'], path_last['x'] + 1]})},
-                3: {'root': dist_root, 'path': pd.DataFrame({'y': [min(path_last['y'] + 1, lref)], 'x': [min(path_last['x'] + 1, lqry)]})}
+                3: {'root': dist_root, 'path': pd.DataFrame({'y': [path_last['y'] + 1] if path_last['y'] < lref -1 else [path_last['y']],
+                                                             'x': [path_last['x'] + 1] if path_last['x'] < lqry -1 else [path_last['x']]})},
+                # 3: {'root': dist_root, 'path': pd.DataFrame({'y': [min(path_last['y'] + 1, lref)], 'x': [min(path_last['x'] + 1, lqry)]})}
             }
 
             # Select path with minimum distance
-            min_index = np.nanargmin([dist_xy, dist_xxy, dist_xyy])
+            min_index = np.nanargmin([dist_xy, dist_xxy, dist_xyy, 1])
             next_step = next_step[min_index]
             dist_root = next_step['root']
             path_last = next_step['path'].iloc[-1]

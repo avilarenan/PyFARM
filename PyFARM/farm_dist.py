@@ -15,8 +15,8 @@ def farm_dist(dyr: Union[float, np.ndarray], dyq: Optional[Union[float, np.ndarr
     float: distance value
     """
     # Create complex numbers for vectors
-    v1c = complex(0, dyr[0]) if dyq is None else complex(0, dyr)
-    v2c = complex(0, dyr[1]) if dyq is None else complex(0, dyq)
+    v1c = complex(0, dyr[0]) if dyq is None else complex(1, dyr)
+    v2c = complex(0, dyr[1]) if dyq is None else complex(1, dyq)
 
     # Calculate the angles of the complex numbers
     phi_v1 = np.angle(v1c)
