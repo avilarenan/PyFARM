@@ -37,6 +37,7 @@ def farm(
         - 'qts_decomp': Decomposed query time series.
         - 'qts_shaped': Shaped query time series after applying local relevance fuzzification.
         - 'rel_local': Local relevance scores.
+        - 'rel_local_end': local relevance values (not fuzzyfied) with correlation coefficient spot to the end of the lcwin.
         - 'rel_local_fuzz': Fuzzified local relevance scores.
         - 'rel_global': Global relevance score.
         - 'qmeas_mean_p': Quality measure based on the mean product of time series.
@@ -114,8 +115,8 @@ def farm(
     rel_qts = zscore(ts_dec['qts'])
 
     # Padding at the ends to ensure equal length for correlation
-    rel_rts = np.concatenate([np.zeros(lcwin // 2), rel_rts, np.zeros(lcwin // 2)])
-    rel_qts = np.concatenate([np.zeros(lcwin // 2), rel_qts, np.zeros(lcwin // 2)])
+    rel_rts = np.concatenate([np.zeros(lcwin -1), rel_rts, np.zeros(lcwin // 2)])
+    rel_qts = np.concatenate([np.zeros(lcwin -1), rel_qts, np.zeros(lcwin // 2)])
 
     # Create rolling windows for local correlation
     rel_rts = pd.DataFrame(np.lib.stride_tricks.sliding_window_view(rel_rts, lcwin).T)
@@ -124,6 +125,12 @@ def farm(
     # Calculate local correlation
     rel_local = np.array([1 - np.sqrt(0.5 * (1 - np.corrcoef(x, y)[0, 1])) for x, y in zip(rel_rts.values.T, rel_qts.values.T)])
     rel_local[np.isnan(rel_local)] = 0
+
+    # Cut tail by floor(win/2) to set spot to the end of sliding window
+    rel_local_end = rel_local[:-np.floor(lcwin / 2).astype(int)]
+
+    # Cut head by floor(win/2) to set spot centric of sliding window
+    rel_local = rel_local[np.floor(lcwin / 2).astype(int):]
 
     # Fuzzification
     fuzzy_l = len(fuzzyc)
@@ -143,6 +150,7 @@ def farm(
         'qts_decomp': ts_dec['qts'],
         'qts_shaped': qts_shaped,
         'rel_local': rel_local,
+        'rel_local_end': rel_local_end,
         'rel_local_fuzz': rel_local_fuzz,
         'rel_global': rel_global,
         'qmeas_mean_p': qmeas_mean_p,
