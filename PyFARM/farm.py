@@ -118,16 +118,28 @@ def farm(
     rel_rts = np.concatenate([np.zeros(lcwin -1), rel_rts, np.zeros(lcwin // 2)])
     rel_qts = np.concatenate([np.zeros(lcwin -1), rel_qts, np.zeros(lcwin // 2)])
 
+    # calculate farm.dist for all element pairings (used for last spot correlation weighting)
+    w_rq_farm_dist = np.array([farm_dist(rt, qt) for rt, qt in zip(rel_rts, rel_qts)])
+
     # Create rolling windows for local correlation
-    rel_rts = pd.DataFrame(np.lib.stride_tricks.sliding_window_view(rel_rts, lcwin).T)
-    rel_qts = pd.DataFrame(np.lib.stride_tricks.sliding_window_view(rel_qts, lcwin).T)
+    rel_rts = pd.DataFrame(np.lib.stride_tricks.sliding_window_view(rel_rts, lcwin))
+    rel_qts = pd.DataFrame(np.lib.stride_tricks.sliding_window_view(rel_qts, lcwin))
+    w_rq_farm_dist < - pd.DataFrame(np.lib.stride_tricks.sliding_window_view(w_rq_farm_dist, lcwin))
 
     # Calculate local correlation
-    rel_local = np.array([1 - np.sqrt(0.5 * (1 - np.corrcoef(x, y)[0, 1])) for x, y in zip(rel_rts.values.T, rel_qts.values.T)])
+    rel_local = np.array([1 - np.sqrt(0.5 * (1 - np.corrcoef(x, y)[0, 1])) for x, y in zip(rel_rts.values, rel_qts.values)])
     rel_local[np.isnan(rel_local)] = 0
 
-    # Cut tail by floor(win/2) to set spot to the end of sliding window
-    rel_local_end = rel_local[:-np.floor(lcwin / 2).astype(int)]
+    # Assuming rel_rts is a numpy array
+    sum_weights = np.linspace(0, 1, num=rel_rts.shape[1]) ** 3
+    sum_weights = sum_weights / np.sum(sum_weights)
+
+    # get sum of weighted farm similarity for all windows
+    w_rq_farm_dist = np.array(np.sum((1 - w_rq_farm_dist) * (np.ones((w_rq_farm_dist.shape[0], 1)) @ sum_weights.reshape(1, -1)), axis=1))
+
+    # weight local relevance for last spot and
+    # cut tail by floor(win/2) to set spot to the end of sliding window
+    rel_local_end = (rel_local * w_rq_farm_dist)[:-np.floor(lcwin / 2).astype(int)]
 
     # Cut head by floor(win/2) to set spot centric of sliding window
     rel_local = rel_local[np.floor(lcwin / 2).astype(int):]
