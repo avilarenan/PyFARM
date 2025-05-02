@@ -30,7 +30,7 @@ def farm_dist(dyr: Union[float, np.ndarray], dyq: Optional[Union[float, np.ndarr
         dist = np.sin(phi_d) if phi_d <= np.pi / 2 else 1
     else:
         # Adjust for contrasting vectors
-        align = np.sign(np.real(v1c)) * np.sign(np.real(v2c))
+        align = np.sign(phi_v1) * np.sign(phi_v2)
         if align == 0:
             align = 1  # If any phi is 0°
         # Calculate distance with combined sine and exponential approach

@@ -119,19 +119,19 @@ def farm(
     rel_qts = np.concatenate([np.zeros(lcwin -1), rel_qts, np.zeros(lcwin // 2)])
 
     # calculate farm.dist for all element pairings (used for last spot correlation weighting)
-    w_rq_farm_dist = np.array([farm_dist(rt, qt) for rt, qt in zip(rel_rts, rel_qts)])
+    w_rq_farm_dist = np.array([farm_dist(rt, qt, metric_space = True) for rt, qt in zip(rel_rts, rel_qts)])
 
     # Create rolling windows for local correlation
     rel_rts = pd.DataFrame(np.lib.stride_tricks.sliding_window_view(rel_rts, lcwin))
     rel_qts = pd.DataFrame(np.lib.stride_tricks.sliding_window_view(rel_qts, lcwin))
-    w_rq_farm_dist < - pd.DataFrame(np.lib.stride_tricks.sliding_window_view(w_rq_farm_dist, lcwin))
+    w_rq_farm_dist = pd.DataFrame(np.lib.stride_tricks.sliding_window_view(w_rq_farm_dist, lcwin))
 
     # Calculate local correlation
     rel_local = np.array([1 - np.sqrt(0.5 * (1 - np.corrcoef(x, y)[0, 1])) for x, y in zip(rel_rts.values, rel_qts.values)])
     rel_local[np.isnan(rel_local)] = 0
 
     # Assuming rel_rts is a numpy array
-    sum_weights = np.linspace(0, 1, num=rel_rts.shape[1]) ** 3
+    sum_weights = np.linspace(0, 1, num=rel_rts.shape[1]) ** 6
     sum_weights = sum_weights / np.sum(sum_weights)
 
     # get sum of weighted farm similarity for all windows
